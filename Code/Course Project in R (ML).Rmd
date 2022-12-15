@@ -1,0 +1,96 @@
+---
+title: "Course Project in R (ML)"
+author: "Preston Robertson"
+date: "5/2/2022"
+output: pdf_document
+---
+
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+# Importing Library
+```{r}
+
+library(pacman)
+library(ggplot2)
+library(glmnet)  
+library(dplyr)   
+library(tidyverse)
+library(caret)
+library(mapplots)
+
+```
+
+
+
+# Loading League Data
+```{r}
+
+# PC
+LeagueDF <- read.csv("C:\\Users\\Preston Robertson\\OneDrive - Mississippi State University\\Documents\\Graduate\\Classes\\Spring Semester\\Data Science\\Project\\base_def.csv")
+
+# Laptop
+#LeagueDF <- read.csv("C:\\Users\\prest\\OneDrive - Mississippi State University\\Documents\\Graduate\\Classes\\Spring Semester\\Data Science\\Project\\base_def.csv")
+
+```
+
+
+# Data Transformation
+```{r}
+
+dat <- LeagueDF
+head(dat)
+
+dat <- mutate(dat, Duration_mins = Duration_secs / 60)
+
+
+dat <- dat %>%
+  mutate(g = ifelse(Role == 'DUO_SUPPORT', 'SUPPORT',
+               ifelse(Role == 'DUO_CARRY', 'ADC', NA)))
+
+dat <- dat %>%
+  mutate(Position = ifelse((Position == 'BOTTOM' & g == 'ADC') | (Position == 'NONE' & g == 'ADC'), 'ADC', 
+              ifelse((Position == 'BOTTOM' & g == 'SUPPORT') | (Position == 'NONE' & g == 'SUPPORT'), 'SUPPORT', Position)))
+
+colnames(dat)[9] <- 'Damage'
+colnames(dat)[10] <- 'DamageTurret'
+
+dat <- dat %>%
+  mutate(dat, GoldRate = GoldEarned / Duration_mins) %>%
+  mutate(dat, KillRate = Kills / Duration_mins)
+
+dat
+
+
+```
+
+
+
+
+
+# Machine Learning
+```{r}
+
+# GAM stands for Generative Additive model. This is a type of model that is used to assess the relationship between data points and is used below to identify several key features and their chances to help improve your win rate.
+
+
+# As seen below, some features are unpredictable and unusable when determining the win. The WRgeneral stat is used to refer to the individual win rate of player x. This means that your previous win/losses do not effect the current game. This can be considered a bad thing since that means that the individual player skills does not have much agency in the game. The KillRate feature is representation of how quickly/often some players kill another player; however, this seems to have no impact on the Win or Loss of a game. Wards placed is a strange one, however some wards can be useless causing many wards to have no impactg on the game.
+
+# The Negative relationships such as deaths mean that the more you die, the more likely you are to lose the game. It also has a significant impact on the win-rate lowering your chances by 40%. Damage is an interesting one, since this requires nuance of the current meta of the game. The role that deal the most damage are currently the weakest role since they deal damage over time. The current meta is in favor of short burst damage, for example 1000 damage over .5s is far better than 5000 damage over 2 seconds. Which shows that the more overall damage you deal in the game the less likely you deal burst damage, which means you are currently weak in the game. 
+## * Burst damage is desired since healing is a big factor in games and can almost negate damage over time abilities. It is difficult to heal a burst of damage.
+
+# Positive relationship, is most stats. As most stats increase, the chances of a player winning a game gradually increases. The important note is which stats matter the most. Kills is the least consistent way to win games according to our GAM, however it does increase the chances. The most important stats are Assists, VisionScore, and WRChamp. The first two make since, the more you help your other 4 teammates, the more likely you will win. The last stat however spells an issue with the game. One of the most impactful things you can do as a player, is pick the correct champions. This shows there is an imbalance of strength among the cast of characters meaning not every player gets play their favorite champions.
+
+gam3 = gam(I(Win == "TRUE") ~  s(Assists, 2)+ s(Kills, 4) + s(Deaths, 2) + s(WRchamp, 2)
+           + s(WRgeneral, 4) + s(Damage, 3) + s(visionScore, 4) + s(wardsPlaced, 4) 
+           + s(GoldRate, 2) + s(KillRate, 4), data = dat)
+par(mfrow = c(1,3))
+plot(gam3, se = TRUE, col = "blue")
+summary(gam3)
+
+```
+
+
+

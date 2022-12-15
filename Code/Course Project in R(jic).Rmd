@@ -1,0 +1,136 @@
+---
+title: "Course Project LoL"
+author: "Preston Robertson"
+date: "4/23/2022"
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+# Importing Library
+```{r}
+
+library(pacman)
+library(ggplot2)
+library(glmnet)  
+library(dplyr)   
+library(tidyverse)
+library(caret)
+library(mapplots)
+
+```
+
+```
+
+# Loading League Data
+```{r}
+
+# PC
+LeagueDF <- read.csv("C:\\Users\\Preston Robertson\\OneDrive - Mississippi State University\\Documents\\Graduate\\Classes\\Spring Semester\\Data Science\\Project\\base_def.csv")
+
+# Laptop
+#LeagueDF <- read.csv("C:\\Users\\prest\\OneDrive - Mississippi State University\\Documents\\Graduate\\Classes\\Spring Semester\\Data Science\\Project\\base_def.csv")
+
+```
+
+
+
+# Basic Analysis
+
+## Base Data
+```{r}
+
+LeagueDF
+
+```
+
+```{r}
+
+dat <- LeagueDF
+head(dat)
+
+```
+
+
+
+
+
+
+
+
+```{r message=FALSE}
+ggplot(data = dat) +
+  geom_smooth(mapping = aes(x = GoldEarned, y = Kills, linetype = Position))
+
+ggplot(data = dat) +
+  geom_point(mapping = aes(x = GoldEarned, y = Kills, color = Win))
+```
+
+```{r message=FALSE}
+
+## Notice how the data above could possibly be skewed; both these metrics naturally increase with time, and so do
+## several other metrics, to keep that from happening we normalize the data using the total duration. This is
+## intended to remove the time bias from the analysis. 
+
+
+ggplot(data = dat) +
+  geom_point(mapping = aes(x = GoldEarned / Duration_secs, y = Kills/Duration_secs, color = Win)) +
+  geom_smooth(mapping = aes(x = GoldEarned/ Duration_secs, y = Kills/ Duration_secs, linetype = Position))
+```
+```{r}
+
+## Is placing wards good for the team and winning?
+
+ggplot(data = dat) +
+  geom_point(mapping = aes(x = wardsPlaced 	, y = Position, color = Win)) 
+
+```
+```{r}
+
+## Is placing wards good for the team and winning?
+
+ggplot(data = dat) +
+  geom_point(mapping = aes(x = WRgeneral 	, y = GoldEarned, color = Win)) 
+
+```
+```{r}
+
+## Player agency is an important topic in the world of video game design. Not only do you want your players to feel like they can accomplish something but also for game balance. 
+## The game is balanced around individual players, so each individual player's agency is very important.
+## For example, if I said a golf player scored a 10 you would naturally think that golfer did poorly, but with the context that par is 27. Then you would assume they are very good.
+## If a player only has around 2-3% agency on the game, then if an item/champion has a win rate around 56% it is a huge deal.
+
+
+ggplot(data = dat) +
+  geom_bar(mapping = aes(x = WRgeneral, fill = Win))
+
+
+ggplot(data = dat) +
+  geom_bar(mapping = aes(x = Deaths, fill = Win))
+
+ggplot(data = dat) +
+  geom_bar(mapping = aes(x = Kills, fill = Win))
+
+
+
+ggplot(data = dat) +
+  geom_bar(mapping = aes(x = Kills, fill = Position))
+
+#ggplot(data = dat) +
+  #geom_bar(mapping = aes(x = Position, fill = Win))
+```
+
+
+
+
+## Including Plots
+
+You can also embed plots, for example:
+
+```{r pressure, echo=FALSE}
+plot(pressure)
+```
+
+Note that the `echo = FALSE` parameter was added to the code chunk to prevent printing of the R code that generated the plot.

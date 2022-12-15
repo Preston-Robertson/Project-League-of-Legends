@@ -1,0 +1,391 @@
+---
+title: "Course Project LoL"
+author: "Preston Robertson"
+date: "4/23/2022"
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+# Importing Library
+```{r}
+
+library(pacman)
+library(ggplot2)
+library(glmnet)  
+library(dplyr)   
+library(tidyverse)
+library(caret)
+library(mapplots)
+
+```
+
+# Loading League Data
+```{r}
+
+# PC
+LeagueDF <- read.csv("C:\\Users\\Preston Robertson\\OneDrive - Mississippi State University\\Documents\\Graduate\\Classes\\Spring Semester\\Data Science\\Project\\base_def.csv")
+
+# Laptop
+#LeagueDF <- read.csv("C:\\Users\\prest\\OneDrive - Mississippi State University\\Documents\\Graduate\\Classes\\Spring Semester\\Data Science\\Project\\base_def.csv")
+
+```
+
+
+
+# Basic Analysis
+
+## Base Data
+```{r}
+
+LeagueDF
+
+```
+
+```{r}
+
+dat <- LeagueDF
+head(dat)
+
+dat <- mutate(dat, Duration_mins = Duration_secs / 60)
+dat
+
+dat <- dat %>%
+  mutate(g = ifelse(Role == 'DUO_SUPPORT', 'SUPPORT',
+               ifelse(Role == 'DUO_CARRY', 'ADC', NA)))
+
+dat <- dat %>%
+  mutate(Position = ifelse((Position == 'BOTTOM' & g == 'ADC') | (Position == 'NONE' & g == 'ADC'), 'ADC', 
+              ifelse((Position == 'BOTTOM' & g == 'SUPPORT') | (Position == 'NONE' & g == 'SUPPORT'), 'SUPPORT', Position)))
+
+dat
+
+
+```
+
+
+
+
+
+
+
+
+```{r message=FALSE}
+ggplot(data = dat) +
+  geom_smooth(mapping = aes(x = GoldEarned, y = Kills, linetype = Position))
+
+ggplot(data = dat) +
+  geom_point(mapping = aes(x = GoldEarned, y = Kills, color = Win))
+```
+
+```{r message=FALSE}
+
+## Notice how the data above could possibly be skewed; both these metrics naturally increase with time, and so do
+## several other metrics, to keep that from happening we normalize the data using the total duration. This is
+## intended to remove the time bias from the analysis. 
+
+
+ggplot(data = dat) +
+  geom_point(mapping = aes(x = GoldEarned / Duration_secs, y = Kills/Duration_secs, color = Win)) +
+  geom_smooth(mapping = aes(x = GoldEarned/ Duration_secs, y = Kills/ Duration_secs, linetype = Position))
+
+
+ggplot(data = dat) + 
+  geom_point(mapping = aes(x = Deaths, y = Kills, color = Win))
+
+ggplot(data = dat) + 
+  geom_point(mapping = aes(x = Deaths / Duration_secs, y = Kills/Duration_secs, color = Win))
+```
+
+```{r}
+
+
+ggplot(data = dat) +
+  geom_point(mapping = aes(x = GoldEarned/Duration_mins, y = Win)) +
+  facet_wrap(facets = vars(Position))
+
+```
+
+```{r}
+
+## Is placing wards good for the team and winning?
+## According to this, placing wards has next to no impact on the outcome of a game.
+
+ggplot(data = dat) +
+  geom_point(mapping = aes(x = wardsPlaced 	, y = Position, color = Win)) 
+
+```
+```{r message=FALSE}
+ggplot(data = dat) +
+  geom_smooth(mapping = aes(x = GoldEarned, y = Kills, linetype = Position))
+
+ggplot(data = dat) +
+  geom_point(mapping = aes(x = GoldEarned, y = Kills, color = Win))
+```
+
+
+```{r}
+
+## Does giving a good player the tools to succeed help their chances of winning the game?
+
+
+## According to these graphs, it would appear yes, depending on the role you are playing. If the player is in the jungle position, then giving the players with a higher win rate more gold increases the chances of winning the game. This shows a great deal of player agency. The support role it does not matter the win-rate of the player, but does correlate with the amount of gold earned. This shows some agency; however, it does show that the role is strong if players that typically lose games can win if given some gold. The ADC shows no correlation with either, the shows this role has no agency on the game.
+
+ggplot(data = dat) +
+  geom_point(mapping = aes(x = WRgeneral 	, y = GoldEarned, color = Win)) +
+  facet_wrap(facets = vars(Position))
+
+
+ggplot(data = dat) +
+  geom_hex(mapping = aes(x = WRgeneral 	, y = GoldEarned, color = Win)) +
+  facet_wrap(facets = vars(Position))
+
+```
+
+
+```{r}
+
+# Does the speed at which gold is earned and kills are made have an impact on the game?
+
+# Arguably these stats seems to have the highest impact on a win, if they are both high values. Later in the ML section you will see that it does not have an impact if separated. These stats further cement the previously stated points of ADC role is weaker since the correlation is not as strong. Jungle is most the ideal role from a balance persepctive and Support seems to be a little too strong right now.
+
+
+ggplot(dat, aes(KillRate, GoldRate)) + 
+  geom_point(aes(color = Win)) + 
+  facet_wrap(facets = vars(Position))
+
+
+
+ggplot(dat, aes(Duration_mins, champLevel)) + 
+  geom_hex(aes(color = Win), alpha = 1/10) + 
+  facet_wrap(facets = vars(Position))
+```
+
+
+
+
+
+```{r}
+
+## Player agency is an important topic in the world of video game design. Not only do you want your players to feel like they can accomplish something but also for game balance. 
+## The game is balanced around individual players, so each individual player's agency is very important.
+## For example, if I said a golf player scored a 10 you would naturally think that golfer did poorly, but with the context that par is 27. Then you would assume they are very good.
+## If a player only has around 2-3% agency on the game, then if an item/champion has a win rate around 56% it is a huge deal.
+
+
+ggplot(data = dat) +
+  geom_bar(mapping = aes(x = WRgeneral, fill = Win))
+
+
+ggplot(data = dat) +
+  geom_bar(mapping = aes(x = Deaths, fill = Win))
+
+ggplot(data = dat) +
+  geom_bar(mapping = aes(x = Kills, fill = Win))
+
+ggplot(data = dat) +
+  geom_bar(mapping = aes(x = Assists, fill = Win))
+
+```
+
+```{r}
+
+# These graphs are sumplmental information breaking down the above information into individual roles.
+
+ggplot(data = dat) +
+  geom_bar(mapping = aes(x = Kills, fill = Position))
+
+ggplot(data = dat) +
+  geom_bar(mapping = aes(x = Deaths, fill = Position))
+
+#ggplot(data = dat) +
+  #geom_bar(mapping = aes(x = Position, fill = Win))
+
+
+```
+
+
+
+```{r}
+
+## Overall information about the game, to show the variability in game length.
+
+## Notice the spikes in the duration graph at 3 minutes and at 15 minutes, this is due to the option to surrender appearing at these times allowing for an early end.
+
+ggplot(data = dat) +
+  geom_bar(mapping = aes(x = Duration_mins, fill = Win)) +  #Notice the spike
+  geom_freqpoly(aes(x = Duration_mins), binwidth = 1/2)
+
+ggplot(data = dat) +
+  #geom_bar(mapping = aes(x = Duration_mins, fill = Win)) +  #Notice the spike
+  geom_freqpoly(aes(x = GoldEarned), binwidth = 50)
+
+
+```
+
+
+```{r}
+
+# Does gold efficiency matter? A.K.A. do players need to be effective in the in game market?
+
+# It would seem that it has a minor impact on the game, except for kills and assists. These show that effective itemaztion in the early game can more consistently net wins. Which is a good thing when analyzing player agency.
+
+
+ggplot(data = dat) +
+  #geom_smooth(aes(x = totalDamageDealtToChampions, color = Position)) +
+  geom_point(aes(x = Duration_mins, y= Damage / GoldEarned,  color = Win))
+
+ggplot(data = dat) +
+  geom_point(aes(x = Duration_mins, y= Kills / GoldEarned,  color = Win))
+
+ggplot(data = dat) +
+  geom_point(aes(x = Duration_mins, y= Assists / GoldEarned,  color = Win))
+
+
+```
+
+
+
+
+```{r}
+
+
+## The importance of stats that are not mentioned, leading to believe that certain strategy's are more powerful if properly executed. Such as a strategy known as "Split-pushing" which refer to a player attempting to kill towers as their main objective instead of other objectives.
+
+
+ggplot(data = dat) + 
+  geom_bar(mapping = aes(x = turretKills, fill = Win), position = "dodge", color = "black")
+
+ggplot(data = dat) + 
+  geom_bar(mapping = aes(x = Kills, fill = Win), position = "dodge", color = "black")
+
+ggplot(data = dat) + 
+  geom_bar(mapping = aes(x = wardsPlaced, fill = Win), position = "dodge", color = "black")
+
+```
+
+```{r}
+
+## The assumption stated above (Top level of play, play the best champs) this can show the difficulty of deciding game balance with data; 
+## however if you look at these results then you can see that some champions are better. Due to the amount of play. No champion has a significant
+## difference between win and loss but some champions are played alot more.
+
+
+ggplot(data = dat) + 
+  geom_bar(mapping = aes(x = Champ, fill = Win), position = "dodge", color = "black")
+```
+
+
+
+```{r}
+
+# The amount of players in each role at the high level of gameplay.
+
+bar <- ggplot(data = dat) +
+  geom_bar(mapping = aes(x = Position, fill = Position), 
+           show.legend = FALSE, width = 1) +
+  theme(aspect.ratio = 1) +
+  labs(x = NULL, y = NULL)
+
+bar
+bar + coord_flip()
+bar + coord_polar()
+```
+
+
+```{r}
+bar1 <- ggplot(data = dat) +
+  geom_bar(mapping = aes(x = Position, fill = Win), 
+           show.legend = FALSE, width = 1) +
+  theme(aspect.ratio = 1) +
+  labs(x = NULL, y = NULL)
+
+bar1
+bar1 + coord_flip()
+bar1 + coord_polar()
+```
+
+
+```{r}
+
+# Are other champions picked more often than other?
+
+# Yes, that is not nessecarly a bad thing since some champions designs might be apealing to more people, however, this is very bad. Its the same champions being picked every game, which shows that some champions are far more powerful than others. 
+
+bar2 <- ggplot(data = dat) +
+  geom_bar(mapping = aes(x = Champ, fill = Champ), 
+           show.legend = FALSE, width = 1) +
+  theme(aspect.ratio = 1) +
+  labs(x = NULL, y = NULL)
+
+bar2
+bar2 + coord_flip()
+bar2 + coord_polar()
+```
+
+
+
+```{r}
+
+# Does each role have diversity in options to play?
+
+# Yes, most champions can be played anywhere, except ADC and Jungle which require a specific design choice before the character is ever released.
+
+dat %>%
+  count(Champ, Position) %>%
+  ggplot() +
+    geom_tile(mapping = aes(x = Position, y = Champ, fill = n))
+
+```
+
+
+
+
+```{r}
+
+# This shows that certain champions typically lose and win the same amount but some are picked far more than others.
+
+# Note that ADC is the only role where picking them gets a darker tile for win. This is due to the role increasing the odds of losing from the moment of selection.
+
+dat %>%
+  count(Champ, Win) %>%
+  ggplot() +
+    geom_tile(mapping = aes(x = Win, y = Champ, fill = n))
+
+dat %>%
+  count(Position, Win) %>%
+  ggplot() +
+    geom_tile(mapping = aes(x = Win, y = Position, fill = n))
+
+
+```
+
+```{r}
+
+# This shows damage distribution per role depending on game time.
+
+# This shows no defining roles other than support champions not dealing as much damage as the other 4 roles.
+
+ggplot(data = dat) +
+  geom_point(mapping = aes(x = Duration_mins, y = totalDamageDealtToChampions, color = Position))
+
+
+
+# This plot shows the average rate of damage per role.
+
+ggplot(data = dat) +
+  geom_point(mapping = aes(x = Duration_mins, y = totalDamageDealtToChampions / Duration_secs, color = Position))
+```
+
+
+## Including Plots
+
+You can also embed plots, for example:
+
+```{r pressure, echo=FALSE}
+plot(pressure)
+```
+
+Note that the `echo = FALSE` parameter was added to the code chunk to prevent printing of the R code that generated the plot.
